@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan Estratégico de Optimización con IBM ABO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Warm Neutrals & Slate Blue -->
+    <!-- Application Structure Plan: Se ha diseñado una SPA con una estructura de "viaje guiado" o "dashboard". Comienza con una visión general de alto nivel (KPIs y resumen), seguida por la presentación del equipo, y luego un plan de proyecto interactivo basado en una línea de tiempo vertical. El usuario puede hacer clic en cada fase para expandir los detalles, incluyendo flujos de trabajo visuales para los procesos BATCH y CICS. Esta estructura fue elegida para transformar un documento denso en una experiencia de exploración intuitiva, permitiendo a diferentes audiencias (gerencial, técnica) acceder a la información que necesitan sin sentirse abrumados, priorizando la usabilidad y la claridad sobre la estructura lineal del informe original. -->
+    <!-- Visualization & Content Choices: 
+        - Resumen Ejecutivo -> Objetivo: Informar/Motivar -> Viz: Tarjetas de KPIs y un gráfico de dona para el objetivo principal de reducción de CPU. -> Interacción: Hover para contexto. -> Justificación: Presenta los objetivos clave de forma inmediata y visualmente atractiva. -> Librería: Chart.js.
+        - Gobernanza y Equipo -> Objetivo: Organizar -> Viz: Tarjetas de roles en una estructura de cuadrícula. -> Interacción: Clic para expandir responsabilidades (futura mejora). -> Justificación: Clarifica quién está involucrado de manera visual. -> Librería: HTML/Tailwind.
+        - Fases del Proyecto -> Objetivo: Organizar/Guiar -> Viz: Línea de tiempo vertical interactiva. -> Interacción: Clic en una fase expande el contenido detallado. -> Justificación: Es el núcleo de la navegación, guiando al usuario a través del proyecto de forma lógica y controlada. -> Librería: HTML/Tailwind/JS.
+        - Flujos de Trabajo BATCH/CICS -> Objetivo: Explicar Proceso -> Viz: Diagramas de flujo construidos con HTML/Tailwind, dentro de pestañas. -> Interacción: Clic en un paso del flujo revela detalles. -> Justificación: Descompone procesos complejos en pasos visuales y manejables. -> Librería: HTML/Tailwind/JS.
+        - Riesgos -> Objetivo: Informar -> Viz: Tabla HTML responsiva. -> Interacción: Hover para resaltar. -> Justificación: Presenta información estructurada de forma clara y accesible. -> Librería: HTML/Tailwind.
+        - Despliegue Masivo -> Objetivo: Comparar -> Viz: Comparación lado a lado. -> Interacción: Pestañas para cambiar entre opciones. -> Justificación: Facilita la comparación directa de estrategias. -> Librería: HTML/Tailwind/JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f7f4;
+            color: #334155;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 300px;
+        }
+        .phase-content {
+            transition: max-height 0.7s ease-in-out, opacity 0.5s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .phase-content.open {
+            max-height: 3500px;
+            opacity: 1;
+        }
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .workflow-step {
+            transition: all 0.3s ease;
+        }
+        .workflow-step:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 24px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 12px;
+            animation: slideIn 0.3s;
+        }
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+        @keyframes slideIn { from {transform: translateY(-50px);} to {transform: translateY(0);} }
+        .nav-link {
+            transition: color 0.3s ease;
+        }
+        .nav-link:hover {
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <nav class="sticky top-0 bg-white/80 backdrop-blur-md shadow-sm z-50">
+        <div class="container mx-auto px-4 md:px-8 max-w-6xl">
+            <div class="flex justify-between items-center py-4">
+                <div class="font-bold text-slate-800 text-lg">Proyecto ABO</div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#overview" class="nav-link text-slate-600 font-medium">Visión General</a>
+                    <a href="#team" class="nav-link text-slate-600 font-medium">Equipo</a>
+                    <a href="#plan" class="nav-link text-slate-600 font-medium">Plan del Proyecto</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+        <header class="text-center my-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-800 mb-2">Plan Estratégico de Optimización</h1>
+            <p class="text-xl text-slate-600">Implementación de IBM Automatic Binary Optimizer (ABO)</p>
+        </header>
+
+        <main>
+            <section id="overview" class="mb-16 bg-white p-8 rounded-2xl shadow-sm">
+                <h2 class="text-3xl font-bold text-slate-700 mb-6 text-center">1. Visión General del Proyecto</h2>
+                <div class="grid md:grid-cols-3 gap-8 items-center">
+                    <div class="md:col-span-2">
+                        <p class="mb-4 text-slate-600">Este proyecto implementará <strong>IBM Automatic Binary Optimizer (ABO)</strong> para optimizar módulos COBOL sin recompilar código fuente. El objetivo principal es <strong>reducir los costos operativos del Mainframe (MLC)</strong> mediante la disminución del consumo de CPU, mejorando al mismo tiempo la eficiencia general de las aplicaciones críticas de negocio.</p>
+                        <p class="text-slate-600">Se adoptará un enfoque iterativo, comenzando con un <strong>proyecto piloto (PoC)</strong> para validar beneficios y medir el ROI con riesgo controlado antes de un posible despliegue masivo.</p>
+                        <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                                <h4 class="font-bold text-blue-800">Reducción de Costos MLC</h4>
+                                <p class="text-sm text-blue-700">Disminución directa del gasto por licencias.</p>
+                            </div>
+                            <div class="bg-green-50 border border-green-200 p-4 rounded-lg">
+                                <h4 class="font-bold text-green-800">Mejora de Rendimiento</h4>
+                                <p class="text-sm text-green-700">Procesos BATCH más rápidos y mejor respuesta CICS.</p>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                                <h4 class="font-bold text-amber-800">Maximización del ROI</h4>
+                                <p class="text-sm text-amber-700">Priorización de aplicaciones de alto impacto.</p>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+                                <h4 class="font-bold text-indigo-800">Proceso Escalable</h4>
+                                <p class="text-sm text-indigo-700">Creación de un modelo de "factoría" para optimización continua.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                         <div class="chart-container">
+                            <canvas id="kpiChart"></canvas>
+                        </div>
+                        <p class="mt-2 font-semibold text-slate-700">KPI Primario: Reducción de CPU</p>
+                        <p class="text-sm text-slate-500">Objetivo: 10-15%</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="team" class="mb-16">
+                <h2 class="text-3xl font-bold text-slate-700 mb-8 text-center">2. Gobernanza y Equipo del Proyecto</h2>
+                <div class="bg-white p-8 rounded-2xl shadow-sm">
+                    <h3 class="text-2xl font-semibold text-slate-600 mb-6">Comité de Dirección (Sponsors)</h3>
+                    <p class="text-slate-600 mb-6">Responsables de la aprobación, supervisión estratégica y validación del ROI del proyecto.</p>
+                    <div class="flex flex-wrap justify-center gap-4 mb-10">
+                        <div class="bg-slate-100 py-2 px-4 rounded-full text-slate-700 font-medium">Gerente de TI</div>
+                        <div class="bg-slate-100 py-2 px-4 rounded-full text-slate-700 font-medium">Líder de Arquitectura Mainframe</div>
+                        <div class="bg-slate-100 py-2 px-4 rounded-full text-slate-700 font-medium">Gerente Financiero</div>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-slate-600 mb-6">Equipo Central del Proyecto</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+                            <h4 class="font-bold text-slate-800">Jefe de Proyecto</h4>
+                            <p class="text-sm text-slate-600">Responsable de planificación, ejecución y comunicación.</p>
+                        </div>
+                        <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+                            <h4 class="font-bold text-slate-800">Administrador de Sistemas z/OS</h4>
+                            <p class="text-sm text-slate-600">Encargado de instalación y configuración de ABO y PTFs.</p>
+                        </div>
+                        <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+                            <h4 class="font-bold text-slate-800">Analista de Rendimiento</h4>
+                            <p class="text-sm text-slate-600">Mide y valida ahorros de CPU/MSU, analiza informes SMF.</p>
+                        </div>
+                        <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+                            <h4 class="font-bold text-slate-800">Líder Técnico de Aplicaciones</h4>
+                            <p class="text-sm text-slate-600">Coordina pruebas funcionales y de regresión.</p>
+                        </div>
+                        <div class="border border-slate-200 p-4 rounded-lg bg-slate-50">
+                            <h4 class="font-bold text-slate-800">Dueños de Aplicaciones/Negocio</h4>
+                            <p class="text-sm text-slate-600">Valida funcionamiento y acepta resultados.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="plan" class="mb-16">
+                 <h2 class="text-3xl font-bold text-slate-700 mb-8 text-center">3. El Plan del Proyecto Interactivo</h2>
+                 <div class="relative pl-8 md:pl-12 border-l-2 border-slate-300">
+                    <div class="mb-12">
+                        <div class="absolute w-6 h-6 bg-blue-500 rounded-full -left-3 mt-1.5 border-4 border-white"></div>
+                        <button class="w-full text-left phase-toggle" data-target="phase1-content">
+                             <h3 class="text-2xl font-bold text-blue-600">Fase 1: Iniciación y Planificación</h3>
+                             <p class="text-slate-500">Definir, alinear y construir la hoja de ruta.</p>
+                        </button>
+                        <div id="phase1-content" class="phase-content mt-4 pr-4">
+                           <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 space-y-6">
+                               <p>El objetivo de esta fase es definir formalmente el proyecto, alinear a todos los interesados y establecer las bases para el éxito mediante una planificación detallada.</p>
+                               <div>
+                                   <h4 class="font-semibold text-lg text-slate-700 mb-2">Entregables Clave</h4>
+                                   <ul class="list-disc list-inside space-y-2 text-slate-600">
+                                       <li><strong>Acta de Constitución del Proyecto (Project Charter):</strong> Documento formal que justifica el proyecto, define objetivos medibles (ej. 10-15% reducción CPU) y establece el alcance del piloto.</li>
+                                       <li><strong>Registro de Interesados:</strong> Identificación de todos los stakeholders, sus roles, expectativas y nivel de influencia.</li>
+                                       <li><strong>Validación del Entorno:</strong> Confirmar que los sistemas z/OS (v2.3+) y el hardware (z14+) cumplen los requisitos, y que los PTFs necesarios están instalados.</li>
+                                   </ul>
+                               </div>
+                               <div>
+                                <h4 class="font-semibold text-lg text-slate-700 mb-2">Gestión de Riesgos</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="bg-slate-100 text-slate-600 uppercase">
+                                            <tr><th class="p-3">Riesgo</th><th class="p-3">Respuesta Planificada</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="border-b"><td class="p-3">Mejora de rendimiento menor a la esperada.</td><td class="p-3">Asegurarse de que los candidatos son computacionalmente intensivos (no limitados por I/O) usando el ABO Assistant.</td></tr>
+                                            <tr class="border-b"><td class="p-3">Un módulo crítico no es elegible para optimización.</td><td class="p-3">Identificar esto tempranamente con <code>SCAN=Y</code>. Comunicar al dueño de la aplicación.</td></tr>
+                                            <tr class="border-b"><td class="p-3">Diferencias en códigos de abend o mensajes.</td><td class="p-3">Revisar la documentación oficial de ABO ("Error message and abend code differences") y preparar al equipo de soporte.</td></tr>
+                                            <tr><td class="p-3">El proceso de optimización falla por falta de memoria.</td><td class="p-3">Configurar el JCL con <code>REGION=0M</code> y un <code>MEMLIMIT</code> adecuado (ej. 10GB) como se recomienda.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                               </div>
+                           </div>
+                        </div>
+                    </div>
+                    <div class="mb-12">
+                        <div class="absolute w-6 h-6 bg-blue-500 rounded-full -left-3 mt-1.5 border-4 border-white"></div>
+                        <button class="w-full text-left phase-toggle" data-target="phase2-content">
+                            <h3 class="text-2xl font-bold text-blue-600">Fase 2: Ejecución del Piloto (PoC)</h3>
+                            <p class="text-slate-500">Optimizar aplicaciones seleccionadas y medir resultados.</p>
+                        </button>
+                        <div id="phase2-content" class="phase-content mt-4 pr-4">
+                             <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                                <p class="mb-6">Fase técnica donde se realiza la optimización. Explore los flujos de trabajo detallados para BATCH y CICS. Haga clic en cada paso para ver detalles técnicos.</p>
+                                <div>
+                                    <div class="border-b border-gray-200"><nav class="-mb-px flex space-x-6"><button class="tab-btn workflow-tab active" data-target="batch-workflow">BATCH</button><button class="tab-btn workflow-tab" data-target="cics-workflow">CICS</button></nav></div>
+                                    <div id="batch-workflow" class="workflow-content mt-6">
+                                        <h4 class="text-xl font-semibold mb-4 text-slate-700">Flujo de Trabajo para Aplicaciones BATCH</h4>
+                                        <div class="space-y-4">
+                                            <div class="workflow-step bg-slate-50 p-4 rounded-lg border-l-4 border-sky-500 cursor-pointer modal-trigger" data-modal="batch-step1">1. <strong>Identificar Candidatos:</strong> Usar Batch SMF Analyzer para encontrar los programas de mayor consumo.</div>
+                                            <div class="text-center text-slate-400 text-xl">↓</div>
+                                            <div class="workflow-step bg-slate-50 p-4 rounded-lg border-l-4 border-sky-500 cursor-pointer modal-trigger" data-modal="batch-step2">2. <strong>Medir Línea Base:</strong> Usar Program Analyzer para medir CPU, optimizar y generar informe de ahorro.</div>
+                                            <div class="text-center text-slate-400 text-xl">↓</div>
+                                            <div class="workflow-step bg-slate-50 p-4 rounded-lg border-l-4 border-sky-500 cursor-pointer modal-trigger" data-modal="batch-step3">3. <strong>Optimización y Pruebas:</strong> Realizar optimización formal y ejecutar pruebas de regresión.</div>
+                                        </div>
+                                    </div>
+                                    <div id="cics-workflow" class="workflow-content mt-6 hidden">
+                                        <h4 class="text-xl font-semibold mb-4 text-slate-700">Flujo de Trabajo para Aplicaciones CICS</h4>
+                                        <div class="space-y-4">
+                                            <div class="workflow-step bg-slate-50 p-4 rounded-lg border-l-4 border-violet-500 cursor-pointer modal-trigger" data-modal="cics-step1">1. <strong>Identificar Candidatos:</strong> Usar CICS SMF Analyzer para analizar datos y encontrar programas de alto consumo.</div>
+                                            <div class="text-center text-slate-400 text-xl">↓</div>
+                                            <div class="workflow-step bg-slate-50 p-4 rounded-lg border-l-4 border-violet-500 cursor-pointer modal-trigger" data-modal="cics-step2">2. <strong>Optimización y Despliegue:</strong> Optimizar módulos y desplegarlos en una región CICS de pruebas.</div>
+                                            <div class="text-center text-slate-400 text-xl">↓</div>
+                                            <div class="workflow-step bg-slate-50 p-4 rounded-lg border-l-4 border-violet-500 cursor-pointer" data-modal="cics-step3">3. <strong>Medición Comparativa:</strong> Generar informe "antes" vs "después" para cuantificar la reducción de CPU.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-12">
+                        <div class="absolute w-6 h-6 bg-blue-500 rounded-full -left-3 mt-1.5 border-4 border-white"></div>
+                        <button class="w-full text-left phase-toggle" data-target="phase3-content">
+                             <h3 class="text-2xl font-bold text-blue-600">Fase 3: Cierre del Piloto y Análisis de Valor</h3>
+                             <p class="text-slate-500">Formalizar resultados y decidir los próximos pasos.</p>
+                        </button>
+                         <div id="phase3-content" class="phase-content mt-4 pr-4">
+                           <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 space-y-6">
+                               <p>El objetivo es capitalizar el trabajo del piloto para tomar una decisión informada y estratégica sobre la expansión de la iniciativa.</p>
+                               <div>
+                                   <h4 class="font-semibold text-lg text-slate-700 mb-2">Actividades de Cierre</h4>
+                                   <ul class="list-disc list-inside space-y-2 text-slate-600">
+                                       <li><strong>Elaborar Informe Final del Piloto:</strong> Resumir objetivos vs. resultados, presentar ahorros de CPU y MSU, y documentar lecciones aprendidas.</li>
+                                       <li><strong>Presentación al Comité de Dirección:</strong> Comunicar los hallazgos para obtener la aprobación formal para el despliegue masivo.</li>
+                                   </ul>
+                               </div>
+                               <div>
+                                   <h4 class="font-semibold text-lg text-slate-700 mb-2">Calculadora de Proyección de Ahorro (ROI)</h4>
+                                   <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                                       <div><label for="costoMSU" class="block text-sm font-medium text-slate-700">Costo Mensual Actual (MLC en USD)</label><input type="number" id="costoMSU" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="500000"></div>
+                                       <div><label for="reduccionCPU" class="block text-sm font-medium text-slate-700">Reducción de CPU esperada (%)</label><input type="number" id="reduccionCPU" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="12"></div>
+                                       <button id="calculateROI" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Calcular Ahorro Anual</button>
+                                       <div id="roiResult" class="text-center font-bold text-xl text-green-600 mt-4"></div>
+                                   </div>
+                               </div>
+                           </div>
+                        </div>
+                    </div>
+                    <div class="mb-12">
+                        <div class="absolute w-6 h-6 bg-blue-500 rounded-full -left-3 mt-1.5 border-4 border-white"></div>
+                        <button class="w-full text-left phase-toggle" data-target="phase4-content">
+                            <h3 class="text-2xl font-bold text-blue-600">Fase 4: Planificación para Despliegue Masivo</h3>
+                            <p class="text-slate-500">Definir la estrategia de escalado o "Modelo de Factoría".</p>
+                        </button>
+                        <div id="phase4-content" class="phase-content mt-4 pr-4">
+                             <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 space-y-6">
+                                <p>Definir una estrategia para escalar el proceso de optimización de manera eficiente y segura a todo el portafolio de aplicaciones COBOL elegibles.</p>
+                                <div>
+                                <h4 class="font-semibold text-lg text-slate-700 mb-2">Comparación de Estrategias de Despliegue</h4>
+                                <div class="grid md:grid-cols-2 gap-6 mt-4">
+                                    <div class="border rounded-lg p-4 bg-slate-50">
+                                        <h5 class="font-bold text-slate-800">Despliegue Estático</h5>
+                                        <p class="text-slate-600 text-sm mt-1">Modificar la concatenación <strong>STEPLIB</strong> en los JCLs.</p>
+                                        <ul class="text-sm mt-3 space-y-1"><li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Simple y directo.</li><li class="flex items-start"><span class="text-red-500 mr-2">✗</span> Requiere gestión de cambios en JCLs.</li></ul>
+                                    </div>
+                                     <div class="border rounded-lg p-4 bg-slate-50 ring-2 ring-blue-500">
+                                        <h5 class="font-bold text-slate-800">Despliegue Dinámico (Recomendado)</h5>
+                                        <p class="text-slate-600 text-sm mt-1">Utilizar <strong>IEFOPZ</strong> de z/OS para redirigir cargas de módulos de forma transparente.</p>
+                                        <ul class="text-sm mt-3 space-y-1"><li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Totalmente transparente para las aplicaciones.</li><li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Ideal para despliegue a gran escala.</li><li class="flex items-start"><span class="text-red-500 mr-2">✗</span> Configuración inicial más compleja.</li></ul>
+                                    </div>
+                                </div>
+                                </div>
+                                 <div>
+                                 <h4 class="font-semibold text-lg text-slate-700 mt-6 mb-2">Crear el Proceso de "Factoría de Optimización"</h4>
+                                <ul class="list-disc list-inside space-y-2 text-slate-600">
+                                    <li><strong>Estandarizar:</strong> Crear JCLs y procedimientos estándar para la optimización.</li>
+                                    <li><strong>Automatizar:</strong> Desarrollar scripts para automatizar la identificación de candidatos, la optimización y el seguimiento.</li>
+                                    <li><strong>Integrar:</strong> Conectar con procesos de gestión de cambios para re-optimizar módulos automáticamente cuando se recompilan.</li>
+                                </ul>
+                                </div>
+                           </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <footer class="text-center mt-12 border-t pt-6">
+            <p class="text-sm text-slate-500">Panel Interactivo del Proyecto de Optimización ABO.</p>
+        </footer>
+    </div>
+    
+    <!-- Modals -->
+    <div id="batch-step1-modal" class="modal"><div class="modal-content"><h3 class="text-xl font-bold mb-4">Detalles: Identificar Candidatos BATCH</h3><p class="mb-4">Se utiliza el JCL <strong>BOZSMFJ</strong> del ABO Assistant, apuntando a un volcado de datos SMF (registros tipo 30, subtipo 4) del entorno de producción.</p><strong>Entregable:</strong> Un informe que prioriza los programas BATCH por mayor consumo de CPU. Se seleccionan los 2-3 programas principales para el piloto.<button class="modal-close mt-6 w-full bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg">Cerrar</button></div></div>
+    <div id="batch-step2-modal" class="modal"><div class="modal-content"><h3 class="text-xl font-bold mb-4">Detalles: Medir Línea Base BATCH</h3><p class="mb-4">Se ejecuta el JCL <strong>BOZPAJ</strong> en un entorno de pruebas. Este JCL automatiza 5 pasos: 1. Toma JCL original. 2. Reenlaza para perfilado. 3. Ejecuta para capturar CPU base. 4. Invoca a ABO. 5. Ejecuta versión optimizada.</p><strong>Entregable:</strong> Un informe de comparación (<code>userid.BOZPA.OUTPUT.pgmname</code>) que muestra el % de reducción de CPU.<button class="modal-close mt-6 w-full bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg">Cerrar</button></div></div>
+    <div id="batch-step3-modal" class="modal"><div class="modal-content"><h3 class="text-xl font-bold mb-4">Detalles: Optimización y Pruebas BATCH</h3><p class="mb-4">Se utiliza un JCL de ABO estándar (ej. <strong>BOZJCLE</strong>) para la optimización final. Se debe apuntar al hardware más reciente para maximizar el beneficio.</p><pre class="bg-gray-100 p-2 rounded text-sm mt-2"><code>//SYSIN DD *
+  ARCH=14  # Apuntar a z16
+  BOPT IN=HLQ.PROD.LOADLIB(PROG01) \
+       OUT=HLQ.ABO.LOADLIB(PROG01)
+/*</code></pre><strong>Entregable:</strong> Módulo optimizado y validado funcionalmente, listo para el plan de despliegue.<button class="modal-close mt-6 w-full bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg">Cerrar</button></div></div>
+    <div id="cics-step1-modal" class="modal"><div class="modal-content"><h3 class="text-xl font-bold mb-4">Detalles: Identificar Candidatos CICS</h3><p class="mb-4">Se recolectan datos SMF tipo 110, subtipo 1, de la región CICS. Se ejecuta el JCL <strong>BOZCICSJ</strong> del ABO Assistant para analizar estos datos.</p><strong>Entregable:</strong> Un informe priorizado que muestra los programas y transacciones CICS con mayor consumo de CPU. Se seleccionan los 1-2 principales.<button class="modal-close mt-6 w-full bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg">Cerrar</button></div></div>
+    <div id="cics-step2-modal" class="modal"><div class="modal-content"><h3 class="text-xl font-bold mb-4">Detalles: Optimización y Despliegue CICS</h3><p class="mb-4">Se optimizan los programas CICS seleccionados y se guardan en una nueva librería (ej. <code>HLQ.CICS.ABO.LOAD</code>). Esta librería se añade al inicio de la concatenación <strong>DFHRPL</strong> de la región CICS de pruebas.</p><strong>Acción Clave:</strong> Se debe realizar un <strong>NEWCOPY</strong> de los programas en CICS para cargar las nuevas versiones optimizadas.<button class="modal-close mt-6 w-full bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg">Cerrar</button></div></div>
+    <div id="cics-step3-modal" class="modal"><div class="modal-content"><h3 class="text-xl font-bold mb-4">Detalles: Medición Comparativa CICS</h3><p class="mb-4">Se ejecuta una carga de trabajo de prueba y se recolecta un nuevo conjunto de datos SMF 110. Se utiliza el JCL <strong>BOZCICPJ</strong> o <strong>BOZCIAPJ</strong> para comparar los datos "antes" y "después".</p><strong>Entregable:</strong> Un informe de comparación (<code>userid.BOZCICS.cobappl.GAIN</code>) que cuantifica la reducción total de CPU y el ahorro por cada programa optimizado.<button class="modal-close mt-6 w-full bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg">Cerrar</button></div></div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const kpiData = { labels: ['Reducción de CPU (Objetivo)', 'Restante'], datasets: [{ data: [12.5, 87.5], backgroundColor: ['#3b82f6', '#e5e7eb'], borderColor: '#f8f7f4', borderWidth: 4, hoverOffset: 8 }] };
+    const kpiConfig = { type: 'doughnut', data: kpiData, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => c.label === 'Reducción de CPU (Objetivo)' ? ` Objetivo: 10-15%` : null } } } } };
+    new Chart(document.getElementById('kpiChart').getContext('2d'), kpiConfig);
+
+    document.querySelectorAll('.phase-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const content = document.getElementById(toggle.dataset.target);
+            const wasOpen = content.classList.contains('open');
+            document.querySelectorAll('.phase-content.open').forEach(c => c.classList.remove('open'));
+            if (!wasOpen) content.classList.add('open');
+        });
+    });
+
+    document.querySelectorAll('.workflow-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.workflow-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.workflow-content').forEach(content => {
+                content.classList.toggle('hidden', content.id !== tab.dataset.target);
+            });
+        });
+    });
+
+    const modals = document.querySelectorAll('.modal');
+    document.querySelectorAll('.modal-trigger').forEach(trigger => {
+        trigger.addEventListener('click', () => {
+            const modal = document.getElementById(trigger.dataset.modal + '-modal');
+            if(modal) modal.style.display = "block";
+        });
+    });
+
+    document.querySelectorAll('.modal-close').forEach(button => {
+        button.addEventListener('click', () => {
+            button.closest('.modal').style.display = "none";
+        });
+    });
+    
+    window.onclick = function(event) {
+        modals.forEach(modal => {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        });
+    }
+
+    document.getElementById('calculateROI').addEventListener('click', () => {
+        const cost = parseFloat(document.getElementById('costoMSU').value) || 0;
+        const reduction = parseFloat(document.getElementById('reduccionCPU').value) || 0;
+        if(cost > 0 && reduction > 0) {
+            const savings = (cost * (reduction / 100)) * 12;
+            document.getElementById('roiResult').textContent = `Ahorro Anual Proyectado: $${savings.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        } else {
+            document.getElementById('roiResult').textContent = 'Por favor, ingrese valores válidos.';
+        }
+    });
+
+    document.getElementById('generationDate').textContent = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+});
+</script>
+</body>
+</html>
+
